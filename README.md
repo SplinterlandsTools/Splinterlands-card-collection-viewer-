@@ -1,8 +1,23 @@
 English:
 
-Python Tool where you can see your card collection progress in Splinterlands compairing the regular / goldfoil cards which is nearer to max lv. 
-and showing your missing bcx , missing cards , owned cards, owned bcx per cards and max cards in bold . Also a total summary of all Editions.
-Percentage each set are also shown. Compairing Regular Foils and Gold Foils showing the higher Level Card and prefering the Goldfoil one. 
+A Python tool for clearly displaying your Splinterlands card collection, comparing Regular and Gold cards to show which version is closer to the max level (with Gold prioritized if it's equally or more leveled).
+
+🔍 Key Features:
+
+Displays both Regular and Goldfoil versions of each card, highlighting the one closer to max level (Gold is preferred if equal or stronger).
+BCX calculation per card, based on XP (card XP → BCX).
+For each card, shows:
+🟢 Owned cards
+📦 Owned BCX
+❌ Missing cards
+🔺 Missing BCX to max level
+✅ Max-level cards (bold)
+Cards grouped by edition: Alpha, Beta, Untamed, Chaos, Rift, etc.
+Edition summaries with percentages:
+% of missing cards
+% of max-level cards
+% of missing BCX
+Overall statistics displayed at the top, summarizing all editions.
 
 
 
