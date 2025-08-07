@@ -78,9 +78,13 @@ SPECIAL_CARDS = {
         "Tortis The Frozen", "Undead Rexx", "Warrior Of Peace", "Warrior of Peace", "Wave Runner"
     }
 }
-IGNORE_BCX_EDITIONS = {"Alpha", "Beta", "Alpha Promo", "Beta Reward", "Beta Promo", "Untamed Promo", "Foundation"}
+IGNORE_BCX_EDITIONS = {"Alpha", "Beta", "Alpha Promo", "Beta Reward", "Beta Promo", "Untamed Promo"}
 # Vereinfachte Funktionen
-def get_max_bcx(rarity, gold):
+def get_max_bcx(rarity, gold, edition_name=None, level=None):
+    # Foundation: Max-Level statt BCX
+    if edition_name == "Foundation":
+        max_levels = {1: 5, 2: 4, 3: 3, 4: 2}
+        return max_levels.get(rarity, 1)
     return {1: 38, 2: 22, 3: 10, 4: 4}[rarity] if gold else {1: 400, 2: 115, 3: 46, 4: 11}[rarity]
 def get_progress_color(percentage):
     if percentage < 30:
@@ -170,7 +174,7 @@ def process_cards_data(cards):
         else:
             final_cards[cid] = {"level": data["highest_level"], "bcx": data["total_bcx"], "gold": gold}
     return final_cards
-def create_combined_columns(parent, owned_cards, missing_cards, bg_color, max_cards_per_column=27):
+def create_combined_columns(parent, owned_cards, missing_cards, bg_color, max_cards_per_column=23):
     all_cards = [(("owned", label, rarity, is_max)) for label, rarity, is_max in
                  sorted(owned_cards, key=lambda x: x[1])]
     all_cards += [("missing", name, rarity, None) for name, rarity in sorted(missing_cards, key=lambda x: x[1])]
@@ -282,16 +286,22 @@ def fetch_cards():
                     label_text = f"{foil_icon}{name} - Level {level}"
                     is_max = False
                 else:
-                    max_bcx = get_max_bcx(rarity, gold)
-                    is_max = bcx >= max_bcx
+                    if edition == "Foundation":
+                        max_level = get_max_bcx(rarity, gold, edition_name=edition)
+                        is_max = level >= max_level
+                    else:
+                        max_bcx = get_max_bcx(rarity, gold)
+                        is_max = bcx >= max_bcx
                     max_icon = " ⭐" if is_max else ""
                     label_text = f"{foil_icon}{name} - Level {level} (BCX {bcx}){max_icon}"
+
                 # Stats aktualisieren
                 stats_by_edition.setdefault(edition, {"missing_bcx": 0, "maxed": 0, "owned": 0})
+                if is_max:
+                    stats_by_edition[edition]["maxed"] += 1
                 if edition not in IGNORE_BCX_EDITIONS:
                     stats_by_edition[edition]["missing_bcx"] += 0 if is_max else max_bcx - bcx
-                    if is_max:
-                        stats_by_edition[edition]["maxed"] += 1
+
                 stats_by_edition[edition]["owned"] += 1
                 edition_groups.setdefault(edition, []).append((label_text, rarity, is_max))
             else:
