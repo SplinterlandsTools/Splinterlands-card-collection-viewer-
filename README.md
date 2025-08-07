@@ -1,8 +1,12 @@
-# Splinterlands-card-collection-viewer-
+English:
+
 Python Tool where you can see your card collection progress in Splinterlands compairing the regular / goldfoil cards which is nearer to max lv. 
 and showing your missing bcx , missing cards , owned cards, owned bcx per cards and max cards in bold . Also a total summary of all Editions.
 Percentage each set are also shown. Compairing Regular Foils and Gold Foils showing the higher Level Card and prefering the Goldfoil one. 
 
+
+
+Deutsch:
 
 Ein Python-Tool zur übersichtlichen Anzeige deiner Splinterlands-Kartensammlung, das Regular- und Goldkarten vergleicht und anzeigt, welche Version näher am Maximallevel ist (dabei wird Gold bevorzugt, wenn sie höher gelevelt ist oder gleichauf).
 
