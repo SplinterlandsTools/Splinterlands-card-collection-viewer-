@@ -6,6 +6,7 @@ A Python tool for clearly displaying your Splinterlands card collection, compari
 
 Displays both Regular and Goldfoil versions of each card, highlighting the one closer to max level (Gold is preferred if equal or stronger).
 BCX calculation per card, based on XP (card XP → BCX).
+
 For each card, shows:
 🟢 Owned cards
 📦 Owned BCX
@@ -28,6 +29,7 @@ Ein Python-Tool zur übersichtlichen Anzeige deiner Splinterlands-Kartensammlung
 🔍 Hauptfunktionen:
 Anzeige beider Kartentypen (Regular und Goldfoil) mit Vergleich, welche Version näher am Maximallevel ist – Gold wird bevorzugt, falls gleich stark oder stärker.
 BCX-Berechnung (Karten-EP → BCX) für jede Karte individuell.
+
 Anzeige für jede Karte:
 🟢 Besitzte Karten
 📦 Besitzte BCX
