@@ -2,6 +2,7 @@ import requests
 import tkinter as tk
 from tkinter import messagebox, ttk
 import math
+
 # Globale Variablen
 card_details_dict = {}
 entry = None
@@ -17,21 +18,6 @@ RARITY_NAMES = {1: "C", 2: "R", 3: "E", 4: "L"}
 # Vereinfachte Sets - kombiniert zu Dictionaries
 SPECIAL_CARDS = {
     "level_only": {
-        "Archmage Arius", "Armorsmith", "Corrupted Pegasus", "Delwyn Dragonscale", "Dragonling Bowman",
-        "Dwarven Wizard", "Dragon Whelp", "Electric Eels", "Enchanted Defender", "Fiendish Harpy",
-        "Goblin Chef", "Lord of Fire", "Mermaid Healer", "Minotaur Warlord", "Molten Ogre",
-        "Prince Julian", "Red Dragon", "Silvershield Bard", "Shin-Lo", "Undead Archer",
-        "Beetle Queen", "Battle Orca", "Boogeyman", "Baby Unicorn", "Brownie", "Black Dragon",
-        "Creeping Ooze", "Crystal Werewolf", "Daria Dragonscale", "Divine Sorceress", "Ettin Spearman",
-        "Exploding Dwarf", "Furious Chicken", "Fallen Specter", "Fire Spitter", "Flame Imp",
-        "Gelatinous Cube", "Goblin Mech", "Gremlin Blaster", "Hobgoblin", "Highland Archer",
-        "Imp Bowman", "Javelin Thrower", "Kobold Miner", "Lord Arianthus", "Manticore",
-        "Mushroom Seer", "Naga Fire Wizard", "Naga Windmaster", "Octopider", "Pirate Archer",
-        "Phantom Soldier", "Prismatic Energy", "Rusty Android", "Ruler of the Seas",
-        "Serpentine Mystic", "Sea Genie", "Screeching Vulture", "Sacred Unicorn", "Sea Monster",
-        "Silvershield Assassin", "Silvershield Archers", "Skeletal Warrior", "Spirit Shaman",
-        "Spirit Miner", "The Kraken", "Undead Minotaur", "Vampire", "Wood Nymph", "Zalran Efreet",
-        "Mighty Dricken", "Halfling Alchemist", "Chain Golem"
     },
     "beta_reward": {
         "Baby Unicorn", "Battle Orca", "Beetle Queen", "Black Dragon", "Boogeyman", "Brownie",
@@ -78,14 +64,18 @@ SPECIAL_CARDS = {
         "Tortis The Frozen", "Undead Rexx", "Warrior Of Peace", "Warrior of Peace", "Wave Runner"
     }
 }
-IGNORE_BCX_EDITIONS = {"Alpha", "Beta", "Alpha Promo", "Beta Reward", "Beta Promo", "Untamed Promo"}
+# BCX wird für alle Editionen angezeigt und berechnet
+IGNORE_BCX_EDITIONS = {}  # Jetzt leer - alle Editionen zeigen BCX an
+
+
 # Vereinfachte Funktionen
 def get_max_bcx(rarity, gold, edition_name=None, level=None):
-    # Foundation: Max-Level statt BCX
+    # Foundation: Spezielle BCX-Werte basierend auf Max-Level
     if edition_name == "Foundation":
-        max_levels = {1: 5, 2: 4, 3: 3, 4: 2}
-        return max_levels.get(rarity, 1)
+        foundation_max_bcx = {1: 60, 2: 25, 3: 10, 4: 3}  # Common=38, Rare=22, Epic=10, Legendary=3
+        return foundation_max_bcx.get(rarity, 1)
     return {1: 38, 2: 22, 3: 10, 4: 4}[rarity] if gold else {1: 400, 2: 115, 3: 46, 4: 11}[rarity]
+
 def get_progress_color(percentage):
     if percentage < 30:
         return "#ffeeee"
@@ -95,6 +85,7 @@ def get_progress_color(percentage):
         return "#eaffea"
     else:
         return "#ccffcc"
+
 def load_card_details():
     global card_details_dict
     try:
@@ -112,6 +103,8 @@ def load_card_details():
             card_details_dict[cid] = {"name": name, "edition": ed, "rarity": rarity}
     except Exception as e:
         messagebox.showerror("Fehler", f"Kartendetails konnten nicht geladen werden: {e}")
+
+
 def classify_card_edition(name, original_edition):
     edition = EDITION_NAMES.get(original_edition, f"Edition {original_edition}")
     if original_edition in [2, 3]:
@@ -133,12 +126,14 @@ def classify_card_edition(name, original_edition):
         elif name in SPECIAL_CARDS["promos"]["conclave"]:
             return "Conclave Promo"
     return edition
+
+
 def process_cards_data(cards):
     card_bcx_totals = {}
     final_cards = {}
     # Erste Phase: Sammle alle BCX-Daten
     for c in cards:
-        cid, lvl, bcx, gold = int(c["card_detail_id"]), int(c.get("level", 1)), int(c.get("xp", 0)), int(
+        cid, lvl, bcx, gold = int(c["card_detail_id"]), int(c.get("level", 1)), int(c.get("bcx", 0)), int(
             c.get("gold", 0))
         key = (cid, gold)
         if key not in card_bcx_totals:
@@ -154,26 +149,27 @@ def process_cards_data(cards):
             name = card_details.get("name", "")
             original_edition = card_details.get("edition", 0)
             edition = classify_card_edition(name, original_edition)
-            # BCX-Logik nur wenn relevant
-            if edition not in IGNORE_BCX_EDITIONS:
-                current_max_bcx = get_max_bcx(rarity, current_card["gold"])
-                new_max_bcx = get_max_bcx(rarity, gold)
-                current_is_maxed = current_card["bcx"] >= current_max_bcx
-                new_is_maxed = data["total_bcx"] >= new_max_bcx
-                if current_is_maxed and new_is_maxed and gold == 1:
-                    final_cards[cid] = {"level": data["highest_level"], "bcx": data["total_bcx"], "gold": gold}
-                    continue
-                elif new_is_maxed and not current_is_maxed:
-                    final_cards[cid] = {"level": data["highest_level"], "bcx": data["total_bcx"], "gold": gold}
-                    continue
-                elif current_is_maxed and not new_is_maxed:
-                    continue
+            # BCX-Logik für alle Editionen
+            current_max_bcx = get_max_bcx(rarity, current_card["gold"])
+            new_max_bcx = get_max_bcx(rarity, gold)
+            current_is_maxed = current_card["bcx"] >= current_max_bcx
+            new_is_maxed = data["total_bcx"] >= new_max_bcx
+            if current_is_maxed and new_is_maxed and gold == 1:
+                final_cards[cid] = {"level": data["highest_level"], "bcx": data["total_bcx"], "gold": gold}
+                continue
+            elif new_is_maxed and not current_is_maxed:
+                final_cards[cid] = {"level": data["highest_level"], "bcx": data["total_bcx"], "gold": gold}
+                continue
+            elif current_is_maxed and not new_is_maxed:
+                continue
             # Standard: Höheres Level gewinnt
             if data["highest_level"] > current_card["level"]:
                 final_cards[cid] = {"level": data["highest_level"], "bcx": data["total_bcx"], "gold": gold}
         else:
             final_cards[cid] = {"level": data["highest_level"], "bcx": data["total_bcx"], "gold": gold}
     return final_cards
+
+
 def create_combined_columns(parent, owned_cards, missing_cards, bg_color, max_cards_per_column=23):
     all_cards = [(("owned", label, rarity, is_max)) for label, rarity, is_max in
                  sorted(owned_cards, key=lambda x: x[1])]
@@ -207,6 +203,7 @@ def create_combined_columns(parent, owned_cards, missing_cards, bg_color, max_ca
                 missing_card = tk.Label(column_frame, text=missing_text, bg="#ffcccc", anchor="w",
                                         font=("Arial", 9), wraplength=200)
                 missing_card.pack(fill="x", pady=1)
+
 def create_edition_frame(parent, edition_name, owned_cards, missing_cards, stats):
     total_owned = stats.get("owned", 0)
     total_maxed = stats.get("maxed", 0)
@@ -223,12 +220,13 @@ def create_edition_frame(parent, edition_name, owned_cards, missing_cards, stats
     frame = tk.Frame(parent, bg=bg_color, relief="raised", bd=1, padx=5, pady=5)
     # Header
     tk.Label(frame, text=edition_name, font=("Arial", 11, "bold"), bg="#d9edf7").pack(fill="x", pady=(0, 5))
-    # Statistiken
-    show_bcx = edition_name not in IGNORE_BCX_EDITIONS
+    # Statistiken - Missing BCX wird jetzt für ALLE Editionen angezeigt
     stats_lines = []
-    if show_bcx and total_missing_bcx > 0:
+    # Missing BCX für alle Editionen anzeigen
+    if total_missing_bcx > 0:
         prefix = "Total Missing BCX" if "Total" in edition_name else "Missing BCX"
         stats_lines.append(f"{prefix}: {total_missing_bcx}")
+
     maxed_label = "Total Maxed Cards" if "Total" in edition_name else "Maxed out Cards"
     owned_label = "Total Owned Cards" if "Total" in edition_name else "Owned Cards"
     missing_label = "Total Missing Cards" if "Total" in edition_name else "Missing Cards"
@@ -252,6 +250,8 @@ def create_edition_frame(parent, edition_name, owned_cards, missing_cards, stats
         tk.Label(frame, text="(Summary only - no card list)", font=("Arial", 7, "italic"),
                  bg=bg_color, fg="#666").pack(pady=2)
     return frame
+
+
 def fetch_cards():
     global entry, main_frame
     username = entry.get().strip()
@@ -282,32 +282,40 @@ def fetch_cards():
                 info = final_cards[cid]
                 level, bcx, gold = info["level"], info["bcx"], info["gold"]
                 foil_icon = "✨" if gold else ""
-                if edition in ["Alpha", "Beta"] or name in SPECIAL_CARDS["level_only"]:
+                if edition in SPECIAL_CARDS["level_only"]:
                     label_text = f"{foil_icon}{name} - Level {level}"
                     is_max = False
                 else:
                     if edition == "Foundation":
-                        max_level = get_max_bcx(rarity, gold, edition_name=edition)
-                        is_max = level >= max_level
+                        max_bcx = get_max_bcx(rarity, gold, edition_name=edition)
+                        is_max = bcx >= max_bcx
                     else:
                         max_bcx = get_max_bcx(rarity, gold)
                         is_max = bcx >= max_bcx
                     max_icon = " ⭐" if is_max else ""
                     label_text = f"{foil_icon}{name} - Level {level} (BCX {bcx}){max_icon}"
-
-                # Stats aktualisieren
+                # Stats aktualisieren - für ALLE Editionen
                 stats_by_edition.setdefault(edition, {"missing_bcx": 0, "maxed": 0, "owned": 0})
                 if is_max:
                     stats_by_edition[edition]["maxed"] += 1
-                if edition not in IGNORE_BCX_EDITIONS:
-                    stats_by_edition[edition]["missing_bcx"] += 0 if is_max else max_bcx - bcx
-
+                # Missing BCX für ALLE Editionen berechnen
+                if not is_max:
+                    if edition == "Foundation":
+                        max_bcx = get_max_bcx(rarity, gold, edition_name=edition)
+                        stats_by_edition[edition]["missing_bcx"] += max(0, max_bcx - bcx)
+                    else:
+                        max_bcx = get_max_bcx(rarity, gold)
+                        stats_by_edition[edition]["missing_bcx"] += max(0, max_bcx - bcx)
                 stats_by_edition[edition]["owned"] += 1
                 edition_groups.setdefault(edition, []).append((label_text, rarity, is_max))
             else:
                 missing_cards_by_edition.setdefault(edition, []).append((name, rarity))
                 stats_by_edition.setdefault(edition, {"missing_bcx": 0, "maxed": 0, "owned": 0})
-                if edition not in IGNORE_BCX_EDITIONS:
+                # Missing BCX für fehlende Karten - ALLE Editionen
+                if edition == "Foundation":
+                    max_bcx = get_max_bcx(rarity, False, edition_name=edition)
+                    stats_by_edition[edition]["missing_bcx"] += max_bcx
+                else:
                     max_bcx = get_max_bcx(rarity, False)
                     stats_by_edition[edition]["missing_bcx"] += max_bcx
         # Clear loading
@@ -373,6 +381,7 @@ def fetch_cards():
         canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"))
     except Exception as e:
         loading.config(text=f"❌ Fehler: {str(e)}")
+
 # GUI Setup
 root = tk.Tk()
 root.title("? Splinterlands Kartensammlung")
