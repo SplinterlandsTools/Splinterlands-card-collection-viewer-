@@ -2,7 +2,6 @@ import requests
 import tkinter as tk
 from tkinter import messagebox, ttk
 import math
-
 # Globale Variablen
 card_details_dict = {}
 entry = None
@@ -66,8 +65,6 @@ SPECIAL_CARDS = {
 }
 # BCX wird für alle Editionen angezeigt und berechnet
 IGNORE_BCX_EDITIONS = {}  # Jetzt leer - alle Editionen zeigen BCX an
-
-
 # Vereinfachte Funktionen
 def get_max_bcx(rarity, gold, edition_name=None, level=None):
     # Foundation: Spezielle BCX-Werte basierend auf Max-Level
@@ -75,7 +72,6 @@ def get_max_bcx(rarity, gold, edition_name=None, level=None):
         foundation_max_bcx = {1: 60, 2: 25, 3: 10, 4: 3}  # Common=38, Rare=22, Epic=10, Legendary=3
         return foundation_max_bcx.get(rarity, 1)
     return {1: 38, 2: 22, 3: 10, 4: 4}[rarity] if gold else {1: 400, 2: 115, 3: 46, 4: 11}[rarity]
-
 def get_progress_color(percentage):
     if percentage < 30:
         return "#ffeeee"
@@ -85,7 +81,6 @@ def get_progress_color(percentage):
         return "#eaffea"
     else:
         return "#ccffcc"
-
 def load_card_details():
     global card_details_dict
     try:
@@ -103,8 +98,6 @@ def load_card_details():
             card_details_dict[cid] = {"name": name, "edition": ed, "rarity": rarity}
     except Exception as e:
         messagebox.showerror("Fehler", f"Kartendetails konnten nicht geladen werden: {e}")
-
-
 def classify_card_edition(name, original_edition):
     edition = EDITION_NAMES.get(original_edition, f"Edition {original_edition}")
     if original_edition in [2, 3]:
@@ -126,8 +119,6 @@ def classify_card_edition(name, original_edition):
         elif name in SPECIAL_CARDS["promos"]["conclave"]:
             return "Conclave Promo"
     return edition
-
-
 def process_cards_data(cards):
     card_bcx_totals = {}
     final_cards = {}
@@ -168,8 +159,6 @@ def process_cards_data(cards):
         else:
             final_cards[cid] = {"level": data["highest_level"], "bcx": data["total_bcx"], "gold": gold}
     return final_cards
-
-
 def create_combined_columns(parent, owned_cards, missing_cards, bg_color, max_cards_per_column=23):
     all_cards = [(("owned", label, rarity, is_max)) for label, rarity, is_max in
                  sorted(owned_cards, key=lambda x: x[1])]
@@ -203,7 +192,6 @@ def create_combined_columns(parent, owned_cards, missing_cards, bg_color, max_ca
                 missing_card = tk.Label(column_frame, text=missing_text, bg="#ffcccc", anchor="w",
                                         font=("Arial", 9), wraplength=200)
                 missing_card.pack(fill="x", pady=1)
-
 def create_edition_frame(parent, edition_name, owned_cards, missing_cards, stats):
     total_owned = stats.get("owned", 0)
     total_maxed = stats.get("maxed", 0)
@@ -226,7 +214,6 @@ def create_edition_frame(parent, edition_name, owned_cards, missing_cards, stats
     if total_missing_bcx > 0:
         prefix = "Total Missing BCX" if "Total" in edition_name else "Missing BCX"
         stats_lines.append(f"{prefix}: {total_missing_bcx}")
-
     maxed_label = "Total Maxed Cards" if "Total" in edition_name else "Maxed out Cards"
     owned_label = "Total Owned Cards" if "Total" in edition_name else "Owned Cards"
     missing_label = "Total Missing Cards" if "Total" in edition_name else "Missing Cards"
@@ -250,8 +237,6 @@ def create_edition_frame(parent, edition_name, owned_cards, missing_cards, stats
         tk.Label(frame, text="(Summary only - no card list)", font=("Arial", 7, "italic"),
                  bg=bg_color, fg="#666").pack(pady=2)
     return frame
-
-
 def fetch_cards():
     global entry, main_frame
     username = entry.get().strip()
@@ -381,11 +366,21 @@ def fetch_cards():
         canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"))
     except Exception as e:
         loading.config(text=f"❌ Fehler: {str(e)}")
-
 # GUI Setup
 root = tk.Tk()
 root.title("? Splinterlands Kartensammlung")
-root.geometry("1600x900")
+# Fenster maximiert starten
+root.state('zoomed')  # Windows
+# Für andere Betriebssysteme als Fallback:
+try:
+    root.wm_state('zoomed')  # Windows alternative
+except:
+    try:
+        root.attributes('-zoomed', True)  # Linux
+    except:
+        # macOS oder Fallback - nutze die volle Bildschirmgröße
+        root.geometry(f"{root.winfo_screenwidth()}x{root.winfo_screenheight()}+0+0")
+
 root.configure(bg="#f7f7f7")
 # Header
 header_frame = tk.Frame(root, bg="#1976d2", height=60)
