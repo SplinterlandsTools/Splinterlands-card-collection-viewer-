@@ -67,10 +67,14 @@ SPECIAL_CARDS = {
 IGNORE_BCX_EDITIONS = {}  # Jetzt leer - alle Editionen zeigen BCX an
 # Vereinfachte Funktionen
 def get_max_bcx(rarity, gold, edition_name=None, level=None):
-    # Foundation: Spezielle BCX-Werte basierend auf Max-Level
     if edition_name == "Foundation":
-        foundation_max_bcx = {1: 60, 2: 25, 3: 10, 4: 3}  # Common=38, Rare=22, Epic=10, Legendary=3
-        return foundation_max_bcx.get(rarity, 1)
+        if gold:  # Goldfoil-Karten haben immer deutlich niedrigere Max-BCX
+            foundation_gold_max = {1: 5, 2: 4, 3: 3, 4: 1}  # Beispielwerte
+            return foundation_gold_max.get(rarity, 1)
+        else:  # Regular
+            foundation_regular_max = {1: 38, 2: 22, 3: 10, 4: 3}
+            return foundation_regular_max.get(rarity, 1)
+    # Standard-Berechnung
     return {1: 38, 2: 22, 3: 10, 4: 4}[rarity] if gold else {1: 400, 2: 115, 3: 46, 4: 11}[rarity]
 def get_progress_color(percentage):
     if percentage < 30:
