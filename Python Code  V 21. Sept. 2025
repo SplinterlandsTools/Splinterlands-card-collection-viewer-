@@ -10,7 +10,7 @@ main_frame = None
 EDITION_NAMES = {
     0: "Alpha", 1: "Beta", 2: "Promo", 3: "Chaos Reward", 4: "Untamed", 5: "Dice",
     6: "Gladius", 7: "Chaos Legion", 8: "Riftwatchers", 10: "Chaos Soulbound",
-    12: "Rebellion", 13: "Rebellion Soulbound", 14: "Conclave", 15: "Foundation", 17: "Conclave Promo"
+    12: "Rebellion", 13: "Rebellion Soulbound", 14: "Conclave", 15: "Foundation", 17: "Conclave Promo", 18: "Conclave Reward"
 }
 RARITY_COLORS = {1: "#d0d0d0", 2: "#87ceeb", 3: "#dda0dd", 4: "#ffd700"}
 RARITY_NAMES = {1: "C", 2: "R", 3: "E", 4: "L"}
@@ -50,7 +50,7 @@ SPECIAL_CARDS = {
             "Sanctus Vicar", "Ulfga the Blighted", "Warborn Shaman"
         },
         "conclave": {"Arcane Skinwalker", "Archmage Yabanius", "Arena Fanatic", "Gramel the Hunger", "Tasoshi Drakamoto",
-                     "Yaba's Pickle"}
+                     "Yaba's Pickle", "Dar 'Gottem' Gearnut"}
     },
     "untamed_reward": {
         "Almo Cambio", "Ancient Lich", "Ant Miners", "Axemaster", "Barking Spider", "Bila The Radiant",
@@ -69,7 +69,7 @@ IGNORE_BCX_EDITIONS = {}  # Jetzt leer - alle Editionen zeigen BCX an
 def get_max_bcx(rarity, gold, edition_name=None, level=None):
     if edition_name == "Foundation":
         if gold:  # Goldfoil-Karten haben immer deutlich niedrigere Max-BCX
-            foundation_gold_max = {1: 5, 2: 4, 3: 3, 4: 1}  # Beispielwerte
+            foundation_gold_max = {1: 5, 2: 4, 3: 2, 4: 1}  # Beispielwerte
             return foundation_gold_max.get(rarity, 1)
         else:  # Regular
             foundation_regular_max = {1: 38, 2: 22, 3: 10, 4: 3}
@@ -322,7 +322,7 @@ def fetch_cards():
             ("Alpha", "Beta"), "Alpha Promo", "Beta Promo", "Beta Reward", "Untamed",
             "Untamed Promo", "Untamed Reward", "Dice", "Chaos Legion", "Chaos Promo", "Chaos Reward",
             "Chaos Soulbound", "Riftwatchers", "Rebellion", "Rebellion Promo", "Rebellion Soulbound",
-            "Conclave", "Conclave Promo", "Gladius", "Foundation"
+            "Conclave", "Conclave Promo", "Conclave Reward", "Gladius", "Foundation"
         ]
         all_editions = set(edition_groups) | set(missing_cards_by_edition)
         used, ordered_groups = set(), []
