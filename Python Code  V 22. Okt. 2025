@@ -163,246 +163,317 @@ def process_cards_data(cards):
         else:
             final_cards[cid] = {"level": data["highest_level"], "bcx": data["total_bcx"], "gold": gold}
     return final_cards
-def create_combined_columns(parent, owned_cards, missing_cards, bg_color, max_cards_per_column=23):
-    all_cards = [(("owned", label, rarity, is_max)) for label, rarity, is_max in
-                 sorted(owned_cards, key=lambda x: x[1])]
-    all_cards += [("missing", name, rarity, None) for name, rarity in sorted(missing_cards, key=lambda x: x[1])]
-    if not all_cards: return
+
+
+# ==========================================================
+# GUI-Komponenten
+# ==========================================================
+def create_combined_columns(parent, owned_cards, missing_cards, bg_color, max_cards_per_column=21,
+                            show_only_not_maxed=False, show_maxed_message=True):
+    """Erzeugt Spalten mit vorhandenen und fehlenden Karten."""
+    # Filtern nach "Not Maxed" wenn aktiviert
+    if show_only_not_maxed:
+        owned_cards = [card for card in owned_cards if not card[2]]
+
+    # Sortierung: Erst nach Seltenheit (rarity), dann nach Name
+    all_cards = [("owned", *x) for x in sorted(owned_cards, key=lambda y: (y[1], y[0]))]
+    all_cards += [("missing", *x, None) for x in sorted(missing_cards, key=lambda y: (y[1], y[0]))]
+
+    if not all_cards and show_maxed_message:  # Nur anzeigen wenn erlaubt
+        maxed_frame = tk.Frame(parent, bg=bg_color)
+        maxed_frame.pack(expand=True, pady=20)
+
+        tk.Label(
+            maxed_frame, text="SET",
+            bg=bg_color, font=("Arial", 20, "bold"),
+            fg="#333"
+        ).pack()
+
+        tk.Label(
+            maxed_frame, text="MAXED OUT ✓",
+            bg=bg_color, font=("Arial", 20, "bold"),
+            fg="#4caf50"
+        ).pack()
+        return
+
     num_columns = math.ceil(len(all_cards) / max_cards_per_column)
     for col in range(num_columns):
-        start_idx = col * max_cards_per_column
-        column_cards = all_cards[start_idx:start_idx + max_cards_per_column]
-        column_frame = tk.Frame(parent, bg=bg_color)
-        column_frame.grid(row=0, column=col, sticky="nw", padx=2)
-        for card_type, label_text, rarity, is_max in column_cards:
-            if card_type == "owned":
-                card_bg = RARITY_COLORS.get(rarity, "#ffffff")
-                font_style = ("Arial", 9, "bold" if is_max else "normal")
-                # Rahmenbreite abhängig von Maxed
-                border_width = 2.5 if is_max else 0.5
-                # Goldrahmen, wenn Karte mit "✨" beginnt
-                if label_text.startswith("✨"):
-                    card_label = tk.Label(column_frame, text=label_text, bg=card_bg, font=font_style,
-                                          relief="solid", bd=border_width, anchor="w", wraplength=260,
-                                          highlightbackground="#FFB800", highlightcolor="#FFB800",
-                                          highlightthickness=2)
-                else:
-                    card_label = tk.Label(column_frame, text=label_text, bg=card_bg, font=font_style,
-                                          relief="solid", bd=border_width, anchor="w", wraplength=260)
-                card_label.pack(fill="x", pady=1)
+        start = col * max_cards_per_column
+        subset = all_cards[start:start + max_cards_per_column]
+        col_frame = tk.Frame(parent, bg=bg_color)
+        col_frame.grid(row=0, column=col, sticky="nw", padx=2)
+
+        for item in subset:
+            ctype = item[0]
+            text = item[1]
+            rarity = item[2]
+            is_max = item[3] if len(item) > 3 else None
+
+            if ctype == "owned":
+                color = RARITY_COLORS.get(rarity, "#ffffff")
+                font = ("Arial", 9, "bold" if is_max else "normal")
+                border = 2 if is_max else 0.5
+
+                label = tk.Label(
+                    col_frame, text=text, bg=color, font=font,
+                    relief="solid", bd=border, anchor="w", wraplength=260,
+                    padx=4, pady=2
+                )
+
+                # Goldrahmen
+                if text.startswith("✨"):
+                    label.config(highlightbackground="#FFB800", highlightthickness=2)
+
+                label.pack(fill="x", pady=1)
+
             else:
-                rarity_text = RARITY_NAMES.get(rarity, "?")
-                missing_text = f"{label_text} ({rarity_text})"
-                missing_card = tk.Label(column_frame, text=missing_text, bg="#ffcccc", anchor="w",
-                                        font=("Arial", 9), wraplength=200)
-                missing_card.pack(fill="x", pady=1)
-def create_edition_frame(parent, edition_name, owned_cards, missing_cards, stats):
+                miss_txt = f"{text} ({RARITY_NAMES.get(rarity, '?')})"
+                tk.Label(
+                    col_frame, text=miss_txt, bg="#ffcccc", anchor="w",
+                    font=("Arial", 9), wraplength=200, padx=4, pady=2
+                ).pack(fill="x", pady=1)
+
+def create_edition_frame(parent, name, owned, missing, stats, show_only_not_maxed=False, show_maxed_message=True):
+    """Erzeugt einen Frame für eine Edition."""
     total_owned = stats.get("owned", 0)
     total_maxed = stats.get("maxed", 0)
     total_missing_bcx = stats.get("missing_bcx", 0)
-    # Vereinfachte Berechnung
-    if "Total" in edition_name:
-        total_missing_display = stats.get("total_missing_count", len(missing_cards))
-        total_cards = total_owned + total_missing_display
-    else:
-        total_cards = total_owned + len(missing_cards)
-    owned_pct = (total_owned / total_cards * 100) if total_cards > 0 else 0
-    maxed_pct = (total_maxed / total_cards * 100) if total_cards > 0 else 0
-    bg_color = "#88cc88" if total_cards > 0 and total_maxed == total_cards else get_progress_color(owned_pct)
+    total_missing_cards = stats.get("total_missing_count", len(missing))
+    total_cards = total_owned + total_missing_cards
+
+    owned_pct = (total_owned / total_cards * 100) if total_cards else 0
+    maxed_pct = (total_maxed / total_cards * 100) if total_cards else 0
+    bg_color = "#8bc34a" if total_cards > 0 and total_maxed == total_cards else get_progress_color(owned_pct)
+
     frame = tk.Frame(parent, bg=bg_color, relief="raised", bd=1, padx=5, pady=5)
-    # Header
-    tk.Label(frame, text=edition_name, font=("Arial", 11, "bold"), bg="#d9edf7").pack(fill="x", pady=(0, 5))
-    # Statistiken - Missing BCX wird jetzt für ALLE Editionen angezeigt
-    stats_lines = []
-    # Missing BCX für alle Editionen anzeigen
-    if total_missing_bcx > 0:
-        prefix = "Total Missing BCX" if "Total" in edition_name else "Missing BCX"
-        stats_lines.append(f"{prefix}: {total_missing_bcx}")
-    maxed_label = "Total Maxed Cards" if "Total" in edition_name else "Maxed out Cards"
-    owned_label = "Total Owned Cards" if "Total" in edition_name else "Owned Cards"
-    missing_label = "Total Missing Cards" if "Total" in edition_name else "Missing Cards"
-    stats_lines.extend([
-        f"{maxed_label}: {total_maxed} ({maxed_pct:.1f}%)",
-        f"{owned_label}: {total_owned} ({owned_pct:.1f}%)",
-        f"{missing_label}: {stats.get('total_missing_count', len(missing_cards)) if 'Total' in edition_name else len(missing_cards)}"
-    ])
-    tk.Label(frame, text="\n".join(stats_lines), font=("Arial", 8), justify="left",
-             bg=bg_color, fg="#333").pack(fill="x", pady=(0, 5))
+
+    # Titel
+    tk.Label(
+        frame, text=name, font=("Arial", 11, "bold"),
+        bg="#2196f3", fg="white", padx=3
+    ).pack(fill="x", pady=(0, 5))
+
+    # Statistiktext
+    lines = [
+        f"Missing BCX: {total_missing_bcx}",
+        f"Maxed Cards: {total_maxed} ({maxed_pct:.1f}%)",
+        f"Owned Cards: {total_owned} ({owned_pct:.1f}%)",
+        f"Missing Cards: {total_missing_cards}"
+    ]
+    tk.Label(
+        frame, text="\n".join(lines), bg=bg_color, fg="#333",
+        font=("Arial", 10, "bold"), justify="left"
+    ).pack(fill="x", pady=(0, 5))
+
     # Fortschrittsbalken
     if total_cards > 0:
-        progress = ttk.Progressbar(frame, length=200, mode='determinate', value=owned_pct)
-        progress.pack(fill="x", pady=(0, 5))
-    # Karten anzeigen
-    if owned_cards or missing_cards:
-        cards_frame = tk.Frame(frame, bg=bg_color)
-        cards_frame.pack(fill="x", pady=2)
-        create_combined_columns(cards_frame, owned_cards, missing_cards, bg_color)
-    elif "Total" in edition_name:
-        tk.Label(frame, text="(Summary only - no card list)", font=("Arial", 7, "italic"),
-                 bg=bg_color, fg="#666").pack(pady=2)
+        ttk.Progressbar(frame, length=200, mode='determinate', value=owned_pct).pack(fill="x", pady=(0, 5))
+
+    # Karten
+    cards_frame = tk.Frame(frame, bg=bg_color)
+    cards_frame.pack(fill="x", pady=2)
+    create_combined_columns(cards_frame, owned, missing, bg_color, show_only_not_maxed=show_only_not_maxed, show_maxed_message=show_maxed_message)
+
     return frame
+
+# ==========================================================
+# Hauptfunktion: Karten abrufen
+# ==========================================================
 def fetch_cards():
-    global entry, main_frame
+    global entry, main_frame, filter_var
     username = entry.get().strip()
     if not username:
-        messagebox.showwarning("Fehler", "Bitte gib einen Benutzernamen ein.")
+        messagebox.showwarning("Fehler", "USERNAME.")
         return
-    # Clear and show loading
-    for widget in main_frame.winfo_children():
-        widget.destroy()
+
+    for w in main_frame.winfo_children():
+        w.destroy()
+
     loading = tk.Label(main_frame, text="⏳ Lade Kartendaten...", font=("Arial", 12))
     loading.pack(expand=True)
     main_frame.update()
+
+    # Filter-Status
+    show_only_not_maxed = filter_var.get()
+
     try:
         resp = requests.get(f"https://api2.splinterlands.com/cards/collection/{username}", timeout=15)
         cards = resp.json().get("cards", [])
         if not cards:
             loading.config(text="❌ Keine Karten gefunden.")
             return
+
         final_cards = process_cards_data(cards)
-        edition_groups, missing_cards_by_edition, stats_by_edition = {}, {}, {}
-        # Process all cards
+        edition_groups, missing_by_ed, stats_by_ed = {}, {}, {}
+
         for cid, details in card_details_dict.items():
             ed = details["edition"]
-            if ed in [9, 11]: continue
+            if ed in [9, 11]:  # Überspringe nicht existierende
+                continue
+
             name, rarity = details["name"], details["rarity"]
             edition = classify_card_edition(name, ed)
+
             if cid in final_cards:
                 info = final_cards[cid]
-                level, bcx, gold = info["level"], info["bcx"], info["gold"]
-                foil_icon = "✨" if gold else ""
-                if edition in SPECIAL_CARDS["level_only"]:
-                    label_text = f"{foil_icon}{name} - Level {level}"
-                    is_max = False
-                else:
-                    if edition == "Foundation":
-                        max_bcx = get_max_bcx(rarity, gold, edition_name=edition)
-                        is_max = bcx >= max_bcx
-                    else:
-                        max_bcx = get_max_bcx(rarity, gold)
-                        is_max = bcx >= max_bcx
-                    max_icon = " ⭐" if is_max else ""
-                    label_text = f"{foil_icon}{name} - Level {level} (BCX {bcx}){max_icon}"
-                # Stats aktualisieren - für ALLE Editionen
-                stats_by_edition.setdefault(edition, {"missing_bcx": 0, "maxed": 0, "owned": 0})
+                lvl, bcx, gold = info["level"], info["bcx"], info["gold"]
+                foil = "✨" if gold else ""
+                max_bcx = get_max_bcx(rarity, gold, edition)
+                is_max = bcx >= max_bcx
+                label = f"{foil}{name} - Level {lvl} (BCX {bcx}){' ⭐' if is_max else ''}"
+
+                stats_by_ed.setdefault(edition, {"missing_bcx": 0, "maxed": 0, "owned": 0})
+                stats_by_ed[edition]["owned"] += 1
                 if is_max:
-                    stats_by_edition[edition]["maxed"] += 1
-                # Missing BCX für ALLE Editionen berechnen
-                if not is_max:
-                    if edition == "Foundation":
-                        max_bcx = get_max_bcx(rarity, gold, edition_name=edition)
-                        stats_by_edition[edition]["missing_bcx"] += max(0, max_bcx - bcx)
-                    else:
-                        max_bcx = get_max_bcx(rarity, gold)
-                        stats_by_edition[edition]["missing_bcx"] += max(0, max_bcx - bcx)
-                stats_by_edition[edition]["owned"] += 1
-                edition_groups.setdefault(edition, []).append((label_text, rarity, is_max))
-            else:
-                missing_cards_by_edition.setdefault(edition, []).append((name, rarity))
-                stats_by_edition.setdefault(edition, {"missing_bcx": 0, "maxed": 0, "owned": 0})
-                # Missing BCX für fehlende Karten - ALLE Editionen
-                if edition == "Foundation":
-                    max_bcx = get_max_bcx(rarity, False, edition_name=edition)
-                    stats_by_edition[edition]["missing_bcx"] += max_bcx
+                    stats_by_ed[edition]["maxed"] += 1
                 else:
-                    max_bcx = get_max_bcx(rarity, False)
-                    stats_by_edition[edition]["missing_bcx"] += max_bcx
-        # Clear loading
+                    stats_by_ed[edition]["missing_bcx"] += max_bcx - bcx
+
+                edition_groups.setdefault(edition, []).append((label, rarity, is_max))
+            else:
+                missing_by_ed.setdefault(edition, []).append((name, rarity))
+                stats_by_ed.setdefault(edition, {"missing_bcx": 0, "maxed": 0, "owned": 0})
+                stats_by_ed[edition]["missing_bcx"] += get_max_bcx(rarity, False, edition)
+
         loading.destroy()
-        # Create scrollable area
+
+        # Scrollbare Ansicht
         canvas = tk.Canvas(main_frame, bg="#ffffff")
         v_scroll = tk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
         h_scroll = tk.Scrollbar(main_frame, orient="horizontal", command=canvas.xview)
         canvas.configure(xscrollcommand=h_scroll.set, yscrollcommand=v_scroll.set)
-        scrollable_frame = tk.Frame(canvas, bg="#ffffff")
-        scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        # Edition ordering
+
+        scrollable = tk.Frame(canvas, bg="#ffffff")
+        scrollable.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=scrollable, anchor="nw")
+
+        # Editionen in gewünschter Reihenfolge
         custom_order = [
-            ("Alpha", "Beta"), "Alpha Promo", "Beta Promo", "Beta Reward", "Untamed",
-            "Untamed Promo", "Untamed Reward", "Dice", "Chaos Legion", "Chaos Promo", "Chaos Reward",
-            "Chaos Soulbound", "Riftwatchers", "Rebellion", "Rebellion Promo", "Rebellion Soulbound",
-            "Conclave", "Conclave Promo", "Conclave Reward", "Gladius", "Foundation"
+            ("Alpha", "Beta"), "Alpha Promo", "Beta Promo", "Beta Reward",
+            "Untamed", "Untamed Promo", "Untamed Reward", "Dice", "Chaos Legion",
+            "Chaos Promo", "Chaos Reward", "Chaos Soulbound", "Riftwatchers",
+            "Rebellion", "Rebellion Promo", "Rebellion Soulbound", "Conclave",
+            "Conclave Promo", "Conclave Reward", "Gladius", "Foundation"
         ]
-        all_editions = set(edition_groups) | set(missing_cards_by_edition)
-        used, ordered_groups = set(), []
-        # Verarbeite custom_order
-        for entry in custom_order:
-            if isinstance(entry, tuple):
-                group_keys = [k for k in entry if k in all_editions]
-                if group_keys:
-                    ordered_groups.append(("/".join(entry), group_keys))
-                    used.update(group_keys)
-            elif entry in all_editions:
-                ordered_groups.append((entry, [entry]))
-                used.add(entry)
-        # Verbleibende Editionen
-        for ed in sorted(all_editions - used):
-            ordered_groups.append((ed, [ed]))
-        # Create edition frames
+
+        all_eds = set(edition_groups) | set(missing_by_ed)
+        used, ordered = set(), []
+
+        for entry_item in custom_order:
+            if isinstance(entry_item, tuple):
+                keys = [k for k in entry_item if k in all_eds]
+                if keys:
+                    ordered.append(("/".join(entry_item), keys))
+                    used.update(keys)
+            elif entry_item in all_eds:
+                ordered.append((entry_item, [entry_item]))
+                used.add(entry_item)
+
+        for ed in sorted(all_eds - used):
+            ordered.append((ed, [ed]))
+
         col = 0
-        for display_name, keys in ordered_groups:
-            all_owned_cards = sum([edition_groups.get(k, []) for k in keys], [])
-            all_missing_cards = sum([missing_cards_by_edition.get(k, []) for k in keys], [])
-            total_missing_bcx = sum(stats_by_edition.get(k, {}).get("missing_bcx", 0) for k in keys)
-            total_maxed = sum(stats_by_edition.get(k, {}).get("maxed", 0) for k in keys)
-            total_owned = sum(stats_by_edition.get(k, {}).get("owned", 0) for k in keys)
-            stats = {"missing_bcx": total_missing_bcx, "maxed": total_maxed, "owned": total_owned}
-            frame = create_edition_frame(scrollable_frame, display_name, all_owned_cards, all_missing_cards, stats)
-            frame.grid(row=0, column=col, sticky="n", padx=2, pady=2)
+        for display, keys in ordered:
+            owned = sum([edition_groups.get(k, []) for k in keys], [])
+            missing = sum([missing_by_ed.get(k, []) for k in keys], [])
+            stats = {
+                "missing_bcx": sum(stats_by_ed[k]["missing_bcx"] for k in keys),
+                "maxed": sum(stats_by_ed[k]["maxed"] for k in keys),
+                "owned": sum(stats_by_ed[k]["owned"] for k in keys)
+            }
+            frame = create_edition_frame(scrollable, display, owned, missing, stats, show_only_not_maxed)
+            frame.grid(row=0, column=col, sticky="n", padx=4, pady=4)
             col += 1
-        # Total-Spalte
-        total_missing_bcx_all = sum(stats_by_edition[ed].get("missing_bcx", 0) for ed in stats_by_edition)
-        total_maxed_all = sum(stats_by_edition[ed].get("maxed", 0) for ed in stats_by_edition)
-        total_owned_all = sum(stats_by_edition[ed].get("owned", 0) for ed in stats_by_edition)
-        total_missing_count_all = sum(len(missing_cards_by_edition.get(ed, [])) for ed in missing_cards_by_edition)
-        stats_total = {
-            "missing_bcx": total_missing_bcx_all, "maxed": total_maxed_all,
-            "owned": total_owned_all, "total_missing_count": total_missing_count_all
+
+        # Gesamtübersicht
+        total_stats = {
+            "missing_bcx": sum(v["missing_bcx"] for v in stats_by_ed.values()),
+            "maxed": sum(v["maxed"] for v in stats_by_ed.values()),
+            "owned": sum(v["owned"] for v in stats_by_ed.values()),
+            "total_missing_count": sum(len(missing_by_ed.get(ed, [])) for ed in missing_by_ed)
         }
-        frame_total = create_edition_frame(scrollable_frame, "Total (All Editions)", [], [], stats_total)
-        frame_total.grid(row=0, column=col, sticky="n", padx=2, pady=2)
-        # Pack scrollbars and canvas
+
+        total_frame = create_edition_frame(scrollable, "Total (All Editions)", [], [], total_stats, show_only_not_maxed,show_maxed_message=False)
+        total_frame.grid(row=0, column=col, sticky="n", padx=4, pady=4)
+
         h_scroll.pack(side="bottom", fill="x")
         v_scroll.pack(side="right", fill="y")
         canvas.pack(side="left", fill="both", expand=True)
-        # Mouse wheel scrolling
+
         canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"))
+
     except Exception as e:
-        loading.config(text=f"❌ Fehler: {str(e)}")
+        loading.config(text=f"❌ Fehler: {e}")
+
+
+# ==========================================================
 # GUI Setup
+# ==========================================================
 root = tk.Tk()
-root.title("? Splinterlands Kartensammlung")
-# Fenster maximiert starten
-root.state('zoomed')  # Windows
-# Für andere Betriebssysteme als Fallback:
+root.title("⚔️ Splinterlands Kartensammlung")
+
+# Fenster maximieren
 try:
-    root.wm_state('zoomed')  # Windows alternative
+    root.state('zoomed')
 except:
     try:
-        root.attributes('-zoomed', True)  # Linux
+        root.attributes('-zoomed', True)
     except:
-        # macOS oder Fallback - nutze die volle Bildschirmgröße
         root.geometry(f"{root.winfo_screenwidth()}x{root.winfo_screenheight()}+0+0")
 
 root.configure(bg="#f7f7f7")
+
 # Header
-header_frame = tk.Frame(root, bg="#1976d2", height=60)
-header_frame.pack(fill="x")
-header_frame.pack_propagate(False)
-tk.Label(header_frame, text="Splinterlands Kartensammlung", font=("Arial", 14, "bold"),
-         bg="#1976d2", fg="white").pack(expand=True)
-# Input area
+header = tk.Frame(root, bg="#1976d2", height=60)
+header.pack(fill="x")
+header.pack_propagate(False)
+tk.Label(
+    header, text="Splinterlands Kartensammlung",
+    font=("Arial", 16, "bold"), bg="#1976d2", fg="white"
+).pack(expand=True)
+
+# Eingabebereich
 input_frame = tk.Frame(root, bg="#f7f7f7")
 input_frame.pack(pady=10)
-tk.Label(input_frame, text="Benutzername:", bg="#f7f7f7", font=("Arial", 10)).grid(row=0, column=0, padx=5)
+
+tk.Label(input_frame, text="Username:", bg="#f7f7f7", font=("Arial", 10, "bold")).grid(row=0, column=0, padx=5)
 entry = tk.Entry(input_frame, font=("Arial", 10))
 entry.grid(row=0, column=1, padx=5)
 entry.bind('<Return>', lambda e: fetch_cards())
-tk.Button(input_frame, text="Karten abrufen", command=fetch_cards, font=("Arial", 9, "bold"),
-          bg="#4caf50", fg="white").grid(row=0, column=2, padx=5)
-# Main area
+
+# Filter-Checkbox
+filter_var = tk.BooleanVar(value=False)
+filter_check = tk.Checkbutton(
+    input_frame,
+    text="ONLY NOT MAXED Cards",
+    variable=filter_var,
+    bg="#f7f7f7",
+    font=("Arial", 10, "bold" ),
+    command=fetch_cards  # Automatisch aktualisieren bei Klick
+)
+filter_check.grid(row=0, column=2, padx=5)
+
+# Karten abrufen Button
+btn = tk.Button(
+    input_frame, text="Karten abrufen", command=fetch_cards,
+    font=("Arial", 9, "bold"), bg="#4caf50", fg="white",
+    activebackground="#66bb6a", relief="raised", bd=2, padx=8, pady=4
+)
+btn.grid(row=0, column=3, padx=5)
+
+# Aktualisieren Button
+refresh_btn = tk.Button(
+    input_frame, text="🔄 Aktualisieren", command=fetch_cards,
+    font=("Arial", 9, "bold"), bg="#2196f3", fg="white",
+    activebackground="#42a5f5", relief="raised", bd=2, padx=8, pady=4
+)
+refresh_btn.grid(row=0, column=4, padx=5)
+
+# Hauptbereich
 main_frame = tk.Frame(root, bg="#ffffff")
 main_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+# Kartendetails laden
 load_card_details()
+
 root.mainloop()
